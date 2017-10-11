@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 
 #include <thread>
 #include <nlohmann/json.hpp>
@@ -6,6 +7,8 @@
 
 #include <boost/asio.hpp>
 #include "boost/bind.hpp"
+
+#include <filewatch.hpp>
 
 namespace jsonsync {
 
@@ -55,7 +58,16 @@ namespace jsonsync {
 
         auto rfc6902_patch = json::parse(std::string(data_, bytes_recvd));
         std::cout << "Applying patch : " << rfc6902_patch.dump(2) << std::endl;
-        the_object.patch(rfc6902_patch);
+        the_object = the_object.patch(rfc6902_patch);
+  
+        std::cout << "the_object is now : " << std::endl;
+        std::cout << "====================" << std::endl;
+        std::cout << the_object.dump(2);
+        std::cout << "====================" << std::endl;
+
+        auto outputstr = the_object.dump(2);
+        std::fstream outfile{"athe_object.json", std::ios::trunc | std::ios::in | std::ios::out };
+        outfile.write(outputstr.data(), outputstr.size());
 
         socket_.async_receive_from(
             boost::asio::buffer(data_, max_length), receiving_endpoint,
@@ -109,48 +121,9 @@ int main(int argc, char** argv) {
 
   using json = nlohmann::json;
 
-//// a JSON value
-//json j_original = R"({
-//  "baz": ["one", "two", "three"],
-//  "foo": "bar"
-//})"_json;
-//
-//// access members with a JSON pointer (RFC 6901)
-//j_original["/baz/1"_json_pointer];
-//// "two"
-//
-//// a JSON patch (RFC 6902)
-//json j_patch = R"([
-//  { "op": "replace", "path": "/baz", "value": "boo" },
-//  { "op": "add", "path": "/hello", "value": ["world"] },
-//  { "op": "remove", "path": "/foo"}
-//])"_json;
-//
-//// apply the patch
-//json j_result = j_original.patch(j_patch);
-//
-//  std::cout << j_result.dump(2) << std::endl;
-//// {
-////    "baz": "boo",
-////    "hello": ["world"]
-//// }
-//
-//// calculate a JSON patch from two JSON values
-//json patch = json::diff(j_result, j_original);
-//// [
-////   { "op":" replace", "path": "/baz", "value": ["one", "two", "three"] },
-////   { "op": "remove","path": "/hello" },
-////   { "op": "add", "path": "/foo", "value": "bar" }
-//// ]
-//
-//  json changed = j_result.patch(patch);
-//
-//  std::cout << changed.dump(2) << std::endl;
-
-
   try
   {
-    if (argc != 3)
+    if (argc < 2)
     {
       std::cerr << "Usage: " << argv[0] << " <listen_address> <multicast_address>\n";
       std::cerr << "  For IPv4, try:\n";
@@ -171,11 +144,23 @@ int main(int argc, char** argv) {
     std::thread input_thread{[&](){
 
       for (;;) {
-        std::cout << "JSON please : " << std::endl;
-        std::string line; 
-        std::getline(std::cin, line);
-        json j = json::parse(line);
-        r.add_changes(j);
+        if (argc == 4) {
+          try { 
+            watch_path(argv[3]);
+            std::ifstream file{"the_object.json"};
+            json j = json::parse(std::string(std::istreambuf_iterator<char>{file}, std::istreambuf_iterator<char>{}));
+            r.add_changes(j);
+
+          } catch (...) {}
+
+        } else {
+
+          std::cout << "JSON please : " << std::endl;
+          std::string line; 
+          std::getline(std::cin, line);
+          json j = json::parse(line);
+          r.add_changes(j);
+        }
       }
 
     }};

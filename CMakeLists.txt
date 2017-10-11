@@ -24,6 +24,7 @@ hunter_add_package(lib-cpp-pre)
 find_package(lib-cpp-pre 1.4.1 REQUIRED)
 include_directories(AFTER ${LIB_CPP_PRE_INCLUDE_DIRS})
 
+include_directories(BEFORE ${CMAKE_CURRENT_LIST_DIR}/src) 
 file (GLOB_RECURSE JSONSYNC_SRCS src/*.cpp)
 add_executable(jsonsync ${JSONSYNC_SRCS})
 target_link_libraries(jsonsync ${CMAKE_THREAD_LIBS_INIT})
